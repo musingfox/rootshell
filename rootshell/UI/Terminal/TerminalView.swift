@@ -1261,6 +1261,10 @@ extension Ghostty {
         // 1pt hidden text field that absorbs first-responder during the resign/become
         // swap so the keyboard window and candidate strip stay alive.
         var inputLanguageSwapParkingField: UITextField?
+        // True from parking first responder until the terminal has it back (or
+        // gave up). resign/become then skip the focus-loss teardown and the
+        // focus-gain rebuild: nothing the user sees should move.
+        var isSwappingResponderForInputLanguage = false
         #if !targetEnvironment(macCatalyst)
         var isPreservingResponderAcrossSceneDeactivation = false
         #endif
@@ -3449,6 +3453,19 @@ extension Ghostty {
             // re-clear so the language pill stays hidden across Globe presses.
             clearInputAssistantsRecursively()
 
+            // A system-side move to another real language (Globe, the keyboard's
+            // language list) is the user's choice. Drop the override so the next
+            // responder reload cannot snap the keyboard back, and so the CJK
+            // deferral and Hangul composition paths describe the keyboard that
+            // is actually up rather than the one we last asked for.
+            if let preferred = preferredInputLanguage,
+               InputLanguagePolicy.shouldDropPreference(
+                   resolvedPreferred: resolvedInputMode(forPrimaryLanguage: preferred)?.primaryLanguage,
+                   systemLanguage: systemInputPrimaryLanguage
+               ) {
+                preferredInputLanguage = nil
+            }
+
             let newLang = textInputMode?.primaryLanguage
             guard newLang != lastInputModePrimaryLanguage else { return }
             if newLang == "emoji" || lastInputModePrimaryLanguage == "emoji" {
@@ -3465,6 +3482,15 @@ extension Ghostty {
             guard let lang = newLang else { return }
             let displayName = Locale.current.localizedString(forIdentifier: lang) ?? lang
             showInputModeOverlay(displayName)
+        }
+
+        /// Run the focus-loss cleanup `resignFirstResponder()` skipped for an
+        /// input-language swap when the terminal could not take focus back from
+        /// the parking field (an overlay claimed the keyboard in between).
+        func abandonInputLanguageSwap() {
+            keyboardAccessoryController?.releaseTouchKeyboardState()
+            EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
+            if surface != nil { applyGhosttyFocus(false) }
         }
 
         private func refreshHardwareInputSourceSwitchAvailability() {
@@ -3863,7 +3889,11 @@ extension Ghostty {
                 keyboardAccessoryController?.scheduleFloatingTouchKeyboardUpdate()
                 #if !targetEnvironment(macCatalyst)
                 // No keyboard toolbar on Catalyst; a bump would only re-render every window.
-                EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
+                // Taking focus back from the input-language parking field changes
+                // no layout either; resignFirstResponder() skipped its bump too.
+                if !isSwappingResponderForInputLanguage {
+                    EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
+                }
                 #endif
             }
 
@@ -3915,7 +3945,13 @@ extension Ghostty {
             Ghostty.logger.info("resignFirstResponder() called on terminal \(self.uuid.uuidString.prefix(8))")
             keyboardAccessoryController?.cancelTouchKeyboardInteraction()
             let result = super.resignFirstResponder()
-            if result {
+            // An input-language swap parks focus on a hidden field for one
+            // runloop turn and takes it straight back. Releasing the touch
+            // keyboard (modifiers, floating card) and dropping Ghostty focus
+            // here would only flash them off and on again; the swap runs that
+            // cleanup itself if the terminal fails to regain focus.
+            let isParkingForInputLanguage = result && isSwappingResponderForInputLanguage
+            if result, !isParkingForInputLanguage {
                 // Ownership ends only on a real focus loss. An incoming
                 // terminal has usually claimed the keyboard already, in which
                 // case this is a no-op and its floating card survives.
@@ -3930,7 +3966,7 @@ extension Ghostty {
 
             // Sync Ghostty surface focus when UIKit resigns us
             // This handles auto-resign when another view becomes first responder
-            if result, self.surface != nil {
+            if result, !isParkingForInputLanguage, self.surface != nil {
                 Ghostty.logger.info("resignFirstResponder() SUCCESS - clearing Ghostty focus")
                 applyGhosttyFocus(false)
             }

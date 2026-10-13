@@ -10,6 +10,7 @@
 //
 
 import UIKit
+import os
 
 extension Ghostty.TerminalView {
 
@@ -17,15 +18,25 @@ extension Ghostty.TerminalView {
         // Emoji search is owned by UIKit even when the terminal remains the
         // text-input responder. A saved language must not mask that mode.
         if isSystemEmojiInputActive { return super.textInputMode }
-        guard let target = preferredInputLanguage else { return super.textInputMode }
+        guard let target = preferredInputLanguage,
+              let mode = resolvedInputMode(forPrimaryLanguage: target) else { return super.textInputMode }
+        return mode
+    }
 
-        if let exact = UITextInputMode.activeInputModes.first(where: { $0.primaryLanguage == target }) {
-            return exact
+    /// The installed input mode a preferred language lands on: an exact
+    /// primary-language match first, else the first mode the request prefixes.
+    func resolvedInputMode(forPrimaryLanguage target: String) -> UITextInputMode? {
+        let modes = UITextInputMode.activeInputModes
+        guard let language = InputLanguagePolicy.resolve(target, among: modes.compactMap(\.primaryLanguage)) else {
+            return nil
         }
-        if let prefix = UITextInputMode.activeInputModes.first(where: { $0.primaryLanguage?.hasPrefix(target) == true }) {
-            return prefix
-        }
-        return super.textInputMode
+        return modes.first { $0.primaryLanguage == language }
+    }
+
+    /// The input mode UIKit actually has up, bypassing the preferred-language
+    /// override. The override is a request; this is what the keyboard shows.
+    var systemInputPrimaryLanguage: String? {
+        super.textInputMode?.primaryLanguage
     }
 
     /// Read the system mode, not our preferred-language override. Hardware
@@ -84,6 +95,17 @@ extension Ghostty.TerminalView {
     /// Mac Catalyst: dispatch via Carbon TIS — the UIKit textInputMode override
     /// is not honored by AppKit's input-source machinery on Catalyst.
     func applyInputLanguageSwitch(toPrimaryLanguage target: String) {
+        // Resolve the outgoing input method before the system swaps it out,
+        // in the order prepareTouchKeyboardSwitch() uses. A half-composed
+        // Hangul syllable in the local model, or UIKit marked text, would
+        // otherwise stay on screen as stale preedit (or be dropped) under the
+        // new keyboard. On Catalyst the macOS input method commits or discards
+        // its own marked text when it is deactivated; only the local model
+        // needs flushing there.
+        commitKoreanCompositionIfNeeded(external: true)
+        #if !targetEnvironment(macCatalyst)
+        if markedTextString != nil { unmarkText() }
+        #endif
         endDictationSession()
         invalidateWritingAssistance()
         #if targetEnvironment(macCatalyst)
@@ -91,11 +113,22 @@ extension Ghostty.TerminalView {
         // so no in-app overlay is needed here.
         InputSourceCatalog.catalystSwitch(toPrimaryLanguage: target)
         #else
+        guard let resolved = resolvedInputMode(forPrimaryLanguage: target)?.primaryLanguage else {
+            // Nothing installed can honor the request; a stored preference
+            // would only make textInputMode readers lie about the keyboard.
+            Ghostty.logger.warning("Input-source switch: no installed keyboard matches \(target, privacy: .public)")
+            return
+        }
         // This preference (and our textInputMode override) reflects a request,
         // not the source UIKit selected through Globe or its language picker.
         // Reapply explicit requests even when the stored preference matches.
         preferredInputLanguage = target
-        showInputModeOverlay(displayName(forPrimaryLanguage: target))
+        showInputModeOverlay(displayName(forPrimaryLanguage: resolved))
+
+        // The system already shows the resolved mode (a mod-tap aimed at the
+        // active language): the responder round-trip below would only rebuild
+        // the input views and flicker focus for no change.
+        guard systemInputPrimaryLanguage != resolved else { return }
 
         // If we're not currently first responder, the override applies next time
         // we become first responder — nothing else to do.
@@ -103,11 +136,24 @@ extension Ghostty.TerminalView {
 
         let parking = ensureSwapParkingField()
         // Order: park grabs first responder, then we take it back on the next
-        // runloop turn so UIKit has actually surfaced the override.
-        _ = parking.becomeFirstResponder()
+        // runloop turn so UIKit has actually surfaced the override. The flag
+        // tells resign/become to leave the touch keyboard, its modifiers and
+        // Ghostty focus alone: focus is only parked, not lost.
+        isSwappingResponderForInputLanguage = true
+        guard parking.becomeFirstResponder() else {
+            // Our resignFirstResponder() refused (app transition, secure draw).
+            // The override still applies on the next genuine focus change.
+            isSwappingResponderForInputLanguage = false
+            return
+        }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            _ = self.becomeFirstResponder()
+            defer { self.isSwappingResponderForInputLanguage = false }
+            guard !self.becomeFirstResponder() else { return }
+            // Never leave the keyboard parked on a hidden field: give up the
+            // park and run the focus-loss cleanup resignFirstResponder() skipped.
+            _ = parking.resignFirstResponder()
+            self.abandonInputLanguageSwap()
         }
         #endif
     }
@@ -133,7 +179,10 @@ extension Ghostty.TerminalView {
     /// while the app is running is reflected on the very next press.
     func cycleInputSource() {
         let sources = InputSourceCatalog.available()
-        guard sources.count > 1 else {
+        guard let next = InputLanguagePolicy.next(
+            after: currentInputSourceIdentifier(),
+            in: sources.map(\.primaryLanguage)
+        ) else {
             // 0 or 1 installed source: nothing to cycle.
             #if !targetEnvironment(macCatalyst)
             if let only = sources.first {
@@ -142,14 +191,7 @@ extension Ghostty.TerminalView {
             #endif
             return
         }
-
-        let currentID = currentInputSourceIdentifier()
-        let currentIndex = currentID.flatMap { id in
-            sources.firstIndex { $0.primaryLanguage == id }
-        } ?? -1
-        // -1 (not found) -> 0; last index -> 0 (wrap).
-        let nextIndex = (currentIndex + 1) % sources.count
-        applyInputLanguageSwitch(toPrimaryLanguage: sources[nextIndex].primaryLanguage)
+        applyInputLanguageSwitch(toPrimaryLanguage: next)
     }
 
     /// The currently-effective input source identifier, in the same namespace as

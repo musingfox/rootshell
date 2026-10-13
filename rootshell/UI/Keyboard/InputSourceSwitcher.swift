@@ -152,6 +152,8 @@ enum InputSourceCatalog {
     /// Returns true if the system accepted the change.
     @discardableResult
     static func catalystSwitch(toPrimaryLanguage target: String) -> Bool {
+        // Already selected: skip the source-list walk and the snapshot reset.
+        if currentSourceID() == target { return true }
         guard let source = catalystSelectableSource(matchingID: target) else {
             logger.warning("Catalyst: no enabled TIS source with id \(target, privacy: .public)")
             return false

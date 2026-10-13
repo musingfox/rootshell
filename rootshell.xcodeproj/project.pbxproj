@@ -133,6 +133,7 @@
 		47AF04300000000000000A01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04300000000000000B01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift */; };
 		47AF04310000000000000A01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04310000000000000B01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift */; };
 		47AF04710000000000000001 /* rootshell/Core/Keybinds/ModTapState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04710000000000000002 /* rootshell/Core/Keybinds/ModTapState.swift */; };
+		47AF0471000000000000A101 /* rootshell/Core/Keybinds/InputLanguagePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0471000000000000A102 /* rootshell/Core/Keybinds/InputLanguagePolicy.swift */; };
 		47AF04710000000000000003 /* rootshell/Core/Keybinds/KeyTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04710000000000000004 /* rootshell/Core/Keybinds/KeyTrigger.swift */; platformFilter = ios; };
 		47AF04710000000000000005 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04710000000000000006 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift */; };
 		47AF04750000000000000A01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04750000000000000B01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift */; };
@@ -635,6 +636,7 @@
 		47AF04300000000000000B01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Multiplexer/MuxSessionTarget.swift; sourceTree = SOURCE_ROOT; };
 		47AF04310000000000000B01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxWindowCloseState.swift; sourceTree = SOURCE_ROOT; };
 		47AF04710000000000000002 /* rootshell/Core/Keybinds/ModTapState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/ModTapState.swift; sourceTree = SOURCE_ROOT; };
+		47AF0471000000000000A102 /* rootshell/Core/Keybinds/InputLanguagePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/InputLanguagePolicy.swift; sourceTree = SOURCE_ROOT; };
 		47AF04710000000000000004 /* rootshell/Core/Keybinds/KeyTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/KeyTrigger.swift; sourceTree = SOURCE_ROOT; };
 		47AF04710000000000000006 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/HardwareKeyboardText.swift; sourceTree = SOURCE_ROOT; };
 		47AF04750000000000000B01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxLayoutNode.swift; sourceTree = SOURCE_ROOT; };
@@ -1282,6 +1284,7 @@
 				47AF04710000000000000004 /* rootshell/Core/Keybinds/KeyTrigger.swift */,
 				47AF04710000000000000006 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift */,
 				47AF04710000000000000002 /* rootshell/Core/Keybinds/ModTapState.swift */,
+				47AF0471000000000000A102 /* rootshell/Core/Keybinds/InputLanguagePolicy.swift */,
 				47AC7E570000000000000010 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift */,
 				47AC7E57000000000000DA02 /* rootshell/Features/Transfer/Attachments/PasteAttachment.swift */,
 				47AC7E57000000000000DC02 /* rootshell/Features/Dictation/Core/DictationFormatter.swift */,
@@ -2310,6 +2313,7 @@
 				47AF04710000000000000003 /* rootshell/Core/Keybinds/KeyTrigger.swift in Sources */,
 				47AF04710000000000000005 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift in Sources */,
 				47AF04710000000000000001 /* rootshell/Core/Keybinds/ModTapState.swift in Sources */,
+				47AF0471000000000000A101 /* rootshell/Core/Keybinds/InputLanguagePolicy.swift in Sources */,
 				47AC7E570000000000000001 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift in Sources */,
 				47AC7E57000000000000DA01 /* rootshell/Features/Transfer/Attachments/PasteAttachment.swift in Sources */,
 				47AC7E57000000000000DC01 /* rootshell/Features/Dictation/Core/DictationFormatter.swift in Sources */,
